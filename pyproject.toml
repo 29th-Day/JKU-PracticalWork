@@ -12,10 +12,6 @@ dependencies = [
     "torchmetrics>=1.9",
 ]
 
-[project.optional-dependencies]
-rocm = ["torch>=2.14", "triton-rocm"]
-cuda = ["torch>=2.14"]
-
 [project.scripts]
 # project = "project:main"
 
@@ -26,14 +22,18 @@ dev = [
     "pytest>=9.1",
     "ruff>=0.16",
 ]
+rocm = ["torch>=2.14", "triton-rocm"]
+cuda = ["torch>=2.14"]
 
 [build-system]
 requires = ["uv_build>=0.12.17,<0.13.0"]
 build-backend = "uv_build"
 
 [tool.uv]
+# AMD (ROCm) by default; NVIDIA opts in with `--no-group rocm --group cuda`.
+default-groups = ["dev", "rocm"]
 environments = ["sys_platform == 'linux'"]
-conflicts = [[{ extra = "rocm" }, { extra = "cuda" }]]
+conflicts = [[{ group = "rocm" }, { group = "cuda" }]]
 
 [[tool.uv.index]]
 name = "pytorch-rocm"
@@ -47,10 +47,10 @@ explicit = true
 
 [tool.uv.sources]
 torch = [
-    { index = "pytorch-rocm", extra = "rocm" },
-    { index = "pytorch-cu130", extra = "cuda" },
+    { index = "pytorch-rocm", group = "rocm" },
+    { index = "pytorch-cu130", group = "cuda" },
 ]
-triton-rocm = [{ index = "pytorch-rocm", extra = "rocm" }]
+triton-rocm = [{ index = "pytorch-rocm", group = "rocm" }]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

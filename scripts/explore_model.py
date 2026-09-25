@@ -6,10 +6,10 @@ a random batch adds per-operation activation statistics as node data overlays
 (mean, std, max_abs, zero_fraction for dead ReLUs, non_finite for NaN/inf).
 
 Examples:
-    uv run --extra rocm scripts/explore_model.py
-    uv run --extra rocm scripts/explore_model.py --preset paper --preset repo_v1
-    uv run --extra rocm scripts/explore_model.py --override global_flux.pool_size=4
-    uv run --extra rocm scripts/explore_model.py --checkpoint run/model.ckpt
+    uv run scripts/explore_model.py
+    uv run scripts/explore_model.py --preset paper --preset repo_v1
+    uv run scripts/explore_model.py --override global_flux.pool_size=4
+    uv run scripts/explore_model.py --checkpoint run/model.ckpt
 """
 
 __all__ = ["main"]

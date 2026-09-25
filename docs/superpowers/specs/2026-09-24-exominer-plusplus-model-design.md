@@ -479,16 +479,15 @@ Each module declares `__all__`. Comments are single-line and only where somethin
 requires-python = ">=3.12"
 dependencies = ["lightning>=2.6", "torchmetrics>=1.9"]
 
-[project.optional-dependencies]
+[dependency-groups]
+dev = ["ai-edge-model-explorer>=0.1.33", "basedpyright>=1.40", "pytest>=9.1", "ruff>=0.16"]
 rocm = ["torch>=2.14", "triton-rocm"]
 cuda = ["torch>=2.14"]
 
-[dependency-groups]
-dev = ["basedpyright>=1.40", "pytest>=9.1", "ruff>=0.16"]
-
 [tool.uv]
+default-groups = ["dev", "rocm"]
 environments = ["sys_platform == 'linux'"]
-conflicts = [[{ extra = "rocm" }, { extra = "cuda" }]]
+conflicts = [[{ group = "rocm" }, { group = "cuda" }]]
 
 [[tool.uv.index]]
 name = "pytorch-rocm"
@@ -502,10 +501,10 @@ explicit = true
 
 [tool.uv.sources]
 torch = [
-    { index = "pytorch-rocm", extra = "rocm" },
-    { index = "pytorch-cu130", extra = "cuda" },
+    { index = "pytorch-rocm", group = "rocm" },
+    { index = "pytorch-cu130", group = "cuda" },
 ]
-triton-rocm = [{ index = "pytorch-rocm", extra = "rocm" }]
+triton-rocm = [{ index = "pytorch-rocm", group = "rocm" }]
 ```
 
 The user already made these changes in part. Still to do:
@@ -517,8 +516,9 @@ The user already made these changes in part. Still to do:
 
 Usage:
 
-- `uv sync --extra rocm` on AMD, `uv sync --extra cuda` on NVIDIA (CUDA 13.0 wheels, NVIDIA driver ≥ 580).
-- A plain `uv sync` still installs torch, because lightning depends on it, but it takes PyPI's default build (CUDA), not ROCm. Always pass an extra.
+- ROCm is the default: plain `uv sync` and `uv run` install `torch+rocm7.2` on AMD.
+- NVIDIA (CUDA 13.0 wheels, driver ≥ 580) opts in on every command with `--no-group rocm --group cuda`. Enabling both groups fails with a conflict error instead of silently switching builds.
+- The torch builds were first extras (`--extra rocm`). That was changed to dependency groups because uv has no default for extras, and a plain `uv run` then silently re-synced to PyPI's CUDA torch, which also broke the ROCm `triton` install.
 - One `uv.lock` covers both. The CUDA path can only be exercised on an NVIDIA machine.
 
 Tooling config:
