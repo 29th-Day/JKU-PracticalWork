@@ -1,6 +1,7 @@
 """Lightning wrapper that trains ExoMiner++ as a binary planet classifier."""
 
 from collections.abc import Mapping
+from dataclasses import asdict
 from typing import override
 
 import lightning
@@ -14,30 +15,15 @@ from project.metrics import paper_metrics
 from project.model import (
     PAPER,
     PAPER_OPTIMIZER,
+    ConfigValue,
     ExoMinerConfig,
     ExoMinerPlusPlus,
     OptimizerConfig,
-)
-from project.model.config import (
-    ConvBranchConfig,
-    ScalarBranchConfig,
-    TransitViewsConfig,
-    UnfoldedFluxConfig,
+    from_flat,
+    to_flat,
 )
 
 __all__ = ["ExoMinerClassifier"]
-
-# Checkpoints hold the configs; torch.load only unpickles allowlisted classes.
-torch.serialization.add_safe_globals(
-    [
-        ExoMinerConfig,
-        OptimizerConfig,
-        ConvBranchConfig,
-        ScalarBranchConfig,
-        TransitViewsConfig,
-        UnfoldedFluxConfig,
-    ]
-)
 
 
 class ExoMinerClassifier(lightning.LightningModule):
@@ -45,15 +31,28 @@ class ExoMinerClassifier(lightning.LightningModule):
 
     Logs `{stage}/loss` and the paper metrics as `{stage}/<metric>` for the stages
     train, val and test.
+
+    The configs are saved as hyperparameters in flat form (`to_flat`, tuples as
+    lists), so checkpoints and `hparams.yaml` hold plain values keyed by name.
+    `config` and `optimizer` accept that flat form too, which is how
+    `load_from_checkpoint` rebuilds the module.
     """
 
     def __init__(
             self,
-            config: ExoMinerConfig = PAPER,
-            optimizer: OptimizerConfig = PAPER_OPTIMIZER,
+            config: ExoMinerConfig | Mapping[str, ConfigValue] = PAPER,
+            optimizer: OptimizerConfig | Mapping[str, float] = PAPER_OPTIMIZER,
     ) -> None:
         super().__init__()
-        self.save_hyperparameters()
+        if not isinstance(config, ExoMinerConfig):
+            config = from_flat(config, PAPER)
+        if not isinstance(optimizer, OptimizerConfig):
+            optimizer = OptimizerConfig(**optimizer)
+        flat = {
+            key: list(value) if isinstance(value, tuple) else value
+            for key, value in to_flat(config).items()
+        }
+        self.save_hyperparameters({"config": flat, "optimizer": asdict(optimizer)})
         self.optimizer_config: OptimizerConfig = optimizer
         self.model: ExoMinerPlusPlus = ExoMinerPlusPlus(config)
         metrics = paper_metrics()

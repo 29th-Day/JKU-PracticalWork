@@ -431,7 +431,7 @@ Module details:
 
 - **`model/exominer.py`:** `ExoMinerPlusPlus(config)` builds the enabled branches in an `nn.ModuleDict`, plus the classifier head. `forward` checks its inputs as described in section 3.
 - **`classifier.py`:** `ExoMinerClassifier(config: ExoMinerConfig = PAPER, optimizer: OptimizerConfig = PAPER_OPTIMIZER)`.
-  - It calls `save_hyperparameters()`, so checkpoints restore the exact config. The config dataclasses are registered with `torch.serialization.add_safe_globals`, because since torch 2.6 `torch.load` only unpickles allowlisted classes.
+  - It saves the configs as hyperparameters in flat form (`to_flat`, with tuples written as lists, plus `asdict(optimizer)`). Checkpoints and `hparams.yaml` then hold plain values keyed by field name, which `torch.load`'s `weights_only` default accepts. `__init__` also accepts the flat form and rebuilds it with `from_flat`, which raises `KeyError` for a saved config that predates a new field instead of silently shifting values.
   - `predict_step` takes an `UnlabeledBatch`, so unlabeled TCEs can be scored.
   - The loss is `binary_cross_entropy_with_logits`, unweighted (v1.0.0 uses no class weights). The optimizer is Adam.
   - Each stage logs `{stage}/loss` and its own clone of `paper_metrics()` as `{stage}/<metric>`, per epoch.

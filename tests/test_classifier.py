@@ -4,11 +4,12 @@ from typing import override
 import lightning
 import pytest
 import torch
+from lightning.pytorch.core.saving import load_hparams_from_yaml, save_hparams_to_yaml
 from torch.utils.data import DataLoader, Dataset
 
 from project.classifier import ExoMinerClassifier
 from project.features import Batch, UnlabeledBatch
-from project.model import DIAGRAM, PAPER, REPO_V1_OPTIMIZER
+from project.model import DIAGRAM, PAPER, REPO_V1_OPTIMIZER, to_flat
 from tests.helpers import random_batch
 
 
@@ -115,3 +116,22 @@ def test_checkpoint_restores_config(tmp_path: Path) -> None:
 
     assert restored.model.config == DIAGRAM
     assert restored.optimizer_config == REPO_V1_OPTIMIZER
+
+
+def test_hparams_reload_from_yaml(tmp_path: Path) -> None:
+    classifier = ExoMinerClassifier(DIAGRAM, REPO_V1_OPTIMIZER)
+    path = tmp_path / "hparams.yaml"
+    save_hparams_to_yaml(path, dict(classifier.hparams))
+
+    restored = ExoMinerClassifier(**load_hparams_from_yaml(path))
+
+    assert restored.model.config == DIAGRAM
+    assert restored.optimizer_config == REPO_V1_OPTIMIZER
+
+
+def test_saved_config_with_missing_key_raises() -> None:
+    flat = to_flat(PAPER)
+    del flat["head_units"]
+
+    with pytest.raises(KeyError, match="head_units"):
+        _ = ExoMinerClassifier(config=flat)

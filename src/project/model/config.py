@@ -40,6 +40,7 @@ __all__ = [
     "ScalarBranchConfig",
     "TransitViewsConfig",
     "UnfoldedFluxConfig",
+    "from_flat",
     "pooled_length",
     "required_features",
     "to_flat",
@@ -221,6 +222,21 @@ def with_overrides(
         for branch, values in per_branch.items()
     }
     return replace(config, **top_level, **branches)
+
+
+def from_flat(
+        flat: Mapping[str, ConfigValue],
+        template: ExoMinerConfig,
+) -> ExoMinerConfig:
+    """Rebuilds a config from all of its dotted keys; `template` only supplies types.
+
+    Unlike `with_overrides`, every key must be present, so a saved config that
+    predates a new field fails with `KeyError` instead of silently taking defaults.
+    """
+    missing = sorted(to_flat(template).keys() - flat.keys())
+    if missing:
+        raise KeyError(f"missing config keys: {missing}")
+    return with_overrides(template, flat)
 
 
 def required_features(config: ExoMinerConfig) -> frozenset[str]:
