@@ -67,11 +67,18 @@ class ExoMinerPlusPlus(nn.Module):
         missing = sorted(self.required_features - inputs.keys())
         if missing:
             raise KeyError(f"missing input features: {missing}")
-        for name in sorted(self.required_features):
-            shape = tuple(inputs[name].shape[1:])
+        names = sorted(self.required_features)
+        for name in names:
+            shape = tuple(inputs[name].shape)
             expected = FEATURE_SHAPES[name]
-            if shape != expected:
-                message = f"{name}: per-example shape {shape}, expected {expected}"
+            if len(shape) != len(expected) + 1 or shape[1:] != expected:
+                message = f"{name}: shape {shape}, expected a batch of {expected}"
+                raise ValueError(message)
+        batch_size = len(inputs[names[0]])
+        for name in names:
+            size = len(inputs[name])
+            if size != batch_size:
+                message = f"{name}: batch size {size}, expected {batch_size}"
                 raise ValueError(message)
 
 

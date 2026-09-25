@@ -69,6 +69,24 @@ def test_wrong_feature_shape_raises_value_error(
         _ = model(inputs)
 
 
+def test_unbatched_scalar_raises_value_error() -> None:
+    model = ExoMinerPlusPlus(PAPER)
+    inputs = random_inputs(PAPER, 2)
+    inputs["tce_steff_norm"] = torch.tensor(0.5)
+
+    with pytest.raises(ValueError, match="tce_steff_norm"):
+        _ = model(inputs)
+
+
+def test_mismatched_batch_sizes_raise_value_error() -> None:
+    model = ExoMinerPlusPlus(PAPER)
+    inputs = random_inputs(PAPER, 2)
+    inputs["tce_steff_norm"] = torch.randn(3)
+
+    with pytest.raises(ValueError, match="tce_steff_norm"):
+        _ = model(inputs)
+
+
 def test_extra_features_are_ignored() -> None:
     model = ExoMinerPlusPlus(PAPER)
     inputs = random_inputs(PAPER, 2)

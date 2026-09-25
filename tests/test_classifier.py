@@ -43,6 +43,7 @@ def _trainer(
         logger=False,
         enable_progress_bar=False,
         enable_model_summary=False,
+        enable_checkpointing=False,
         fast_dev_run=fast_dev_run,
         max_steps=max_steps,
         default_root_dir=default_root_dir,
@@ -82,10 +83,33 @@ def test_validation_with_a_single_class() -> None:
         batch["label"] = torch.zeros(4)
     trainer = _trainer()
 
-    with pytest.warns(UserWarning):
+    with pytest.warns(UserWarning, match="No positive samples"):
         results = trainer.validate(classifier, DataLoader(dataset, batch_size=None))
 
     assert "val/loss" in results[0]
+
+
+def test_train_loss_is_logged_per_epoch_as_train_loss() -> None:
+    classifier = ExoMinerClassifier()
+    trainer = _trainer(max_steps=1)
+
+    trainer.fit(classifier, _loader(batches=1), _loader(batches=1))
+
+    assert "train/loss" in trainer.logged_metrics
+    assert "train/loss_step" not in trainer.logged_metrics
+
+
+def test_integer_labels_are_accepted() -> None:
+    classifier = ExoMinerClassifier()
+    dataset = _RandomBatches(batches=1, batch_size=4)
+    for batch in dataset.batches:
+        batch["label"] = batch["label"].long()
+    loader = DataLoader(dataset, batch_size=None)
+    trainer = _trainer(max_steps=1)
+
+    trainer.fit(classifier, loader, loader)
+
+    assert "train/loss" in trainer.callback_metrics
 
 
 def test_overfits_a_single_batch() -> None:

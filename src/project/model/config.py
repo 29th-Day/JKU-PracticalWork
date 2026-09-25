@@ -131,6 +131,13 @@ BranchConfig = (
     ScalarBranchConfig | ConvBranchConfig | TransitViewsConfig | UnfoldedFluxConfig
 )
 
+_BRANCH_TYPES = (
+    ScalarBranchConfig,
+    ConvBranchConfig,
+    TransitViewsConfig,
+    UnfoldedFluxConfig,
+)
+
 
 @dataclass(frozen=True, slots=True)
 class ExoMinerConfig:
@@ -246,14 +253,6 @@ def required_features(config: ExoMinerConfig) -> frozenset[str]:
         if enabled:
             names.update(views, scalars)
     return frozenset(names)
-
-
-_BRANCH_TYPES = (
-    ScalarBranchConfig,
-    ConvBranchConfig,
-    TransitViewsConfig,
-    UnfoldedFluxConfig,
-)
 
 
 def _branch_inputs(

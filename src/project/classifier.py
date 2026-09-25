@@ -97,13 +97,13 @@ class ExoMinerClassifier(lightning.LightningModule):
             stage: str,
     ) -> Tensor:
         logits = self(batch["features"])
-        labels = batch["label"]
+        labels = batch["label"].float()
         loss = functional.binary_cross_entropy_with_logits(logits, labels)
         metrics.update(torch.sigmoid(logits), labels.long())
         self.log(
             f"{stage}/loss",
             loss,
-            on_step=stage == "train",
+            on_step=False,
             on_epoch=True,
             batch_size=len(labels),
         )
