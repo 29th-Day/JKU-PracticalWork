@@ -8,6 +8,7 @@ from project.model.config import (
     to_flat,
     with_overrides,
 )
+from project.model.exominer import ExoMinerPlusPlus
 from project.model.presets import (
     DIAGRAM,
     PAPER,
@@ -24,6 +25,7 @@ __all__ = [
     "REPO_V1_OPTIMIZER",
     "ConfigValue",
     "ExoMinerConfig",
+    "ExoMinerPlusPlus",
     "OptimizerConfig",
     "required_features",
     "to_flat",
