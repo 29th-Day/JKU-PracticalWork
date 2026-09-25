@@ -1,6 +1,7 @@
 import pytest
 import torch
 
+from project.inspection import random_inputs
 from project.model import (
     DIAGRAM,
     PAPER,
@@ -10,7 +11,6 @@ from project.model import (
     ExoMinerPlusPlus,
     with_overrides,
 )
-from tests.helpers import random_inputs
 
 PRESETS = [PAPER, DIAGRAM, REPO_V1]
 

@@ -1,18 +1,10 @@
-"""Random inputs for tests, built from the features a config reads."""
+"""Random labeled batches for tests, built from the features a config reads."""
 
 import torch
-from torch import Tensor
 
-from project.features import FEATURE_SHAPES, Batch
-from project.model import ExoMinerConfig, required_features
-
-
-def random_inputs(config: ExoMinerConfig, batch_size: int) -> dict[str, Tensor]:
-    """Standard-normal tensors for every feature the model built from `config` reads."""
-    return {
-        name: torch.randn(batch_size, *FEATURE_SHAPES[name])
-        for name in sorted(required_features(config))
-    }
+from project.features import Batch
+from project.inspection import random_inputs
+from project.model import ExoMinerConfig
 
 
 def random_batch(config: ExoMinerConfig, batch_size: int) -> Batch:

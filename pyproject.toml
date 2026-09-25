@@ -21,6 +21,7 @@ cuda = ["torch>=2.14"]
 
 [dependency-groups]
 dev = [
+    "ai-edge-model-explorer>=0.1.33",
     "basedpyright>=1.40",
     "pytest>=9.1",
     "ruff>=0.16",
@@ -59,6 +60,7 @@ filterwarnings = [
     "ignore:.*does not have many workers:UserWarning",
     "ignore:`isinstance\\(treespec, LeafSpec\\)` is deprecated",
     "ignore:GPU available but not used",
+    "ignore:cuDNN Benchmark limit is not supported in MIOpen",
 ]
 
 [tool.ruff]
@@ -70,7 +72,7 @@ select = ["E", "W", "F", "I", "N", "UP", "B", "Q"]
 [tool.basedpyright]
 pythonVersion = "3.12"
 typeCheckingMode = "recommended"
-include = ["src", "tests"]
+include = ["src", "tests", "scripts/explore_model.py"]
 # nn.Module.__call__ and parts of torch/Lightning are typed as Any or left untyped.
 reportAny = false
 reportUnknownMemberType = false

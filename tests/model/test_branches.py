@@ -6,6 +6,7 @@ from project.features import (
     ODD_VIEWS,
     UNFOLDED_FLUX_VIEW,
 )
+from project.inspection import random_inputs
 from project.model import DIAGRAM, PAPER, REPO_V1, ExoMinerConfig, ExoMinerPlusPlus
 from project.model.branches import (
     DifferenceImageBranch,
@@ -15,7 +16,6 @@ from project.model.branches import (
     UnfoldedFluxBranch,
 )
 from project.model.layers import BranchHead, with_scalars
-from tests.helpers import random_inputs
 
 # Input width of every branch head per preset; derived in spec section 5.2.
 HEAD_INPUTS = {

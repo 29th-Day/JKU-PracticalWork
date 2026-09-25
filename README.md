@@ -34,3 +34,20 @@ uv run --extra rocm pytest         # or: uv run --extra cuda pytest
 uv run --extra rocm basedpyright   # or: uv run --extra cuda basedpyright
 uv run --extra rocm ruff check     # or: uv run --extra cuda ruff check
 ```
+
+## Inspecting the model
+
+`scripts/explore_model.py` opens the model in
+[Model Explorer](https://github.com/google-ai-edge/model-explorer). Every branch is
+a collapsible group, and one forward pass on a random batch adds per-operation
+overlays (mean, std, max_abs, zero_fraction for dead ReLUs, non_finite for NaN/inf):
+
+```bash
+uv run --extra rocm scripts/explore_model.py                                # PAPER preset
+uv run --extra rocm scripts/explore_model.py --preset paper --preset repo_v1
+uv run --extra rocm scripts/explore_model.py --override global_flux.pool_size=4
+uv run --extra rocm scripts/explore_model.py --checkpoint path/to/model.ckpt
+```
+
+Pick an overlay in the viewer's node data panel. Add `--no-browser` on a remote
+machine and open the printed URL yourself.
