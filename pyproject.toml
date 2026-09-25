@@ -58,6 +58,7 @@ filterwarnings = [
     "ignore:Using padding='same' with even kernel lengths:UserWarning",
     "ignore:.*does not have many workers:UserWarning",
     "ignore:`isinstance\\(treespec, LeafSpec\\)` is deprecated",
+    "ignore:GPU available but not used",
 ]
 
 [tool.ruff]
