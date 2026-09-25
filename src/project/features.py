@@ -4,10 +4,6 @@ Names follow NASA's ExoMiner++ TFRecord features. Shapes are per example; batchi
 adds a leading dimension. Scalars have shape `()`.
 """
 
-from typing import TypedDict
-
-from torch import Tensor
-
 __all__ = [
     "CENTROID_VIEWS",
     "DIFF_IMG_VIEWS",
@@ -32,6 +28,10 @@ __all__ = [
     "Batch",
     "UnlabeledBatch",
 ]
+
+from typing import TypedDict
+
+from torch import Tensor
 
 TRANSIT_BINS = 31
 FULL_ORBIT_BINS = 301

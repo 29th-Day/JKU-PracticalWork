@@ -1,5 +1,7 @@
 """Lightning wrapper that trains ExoMiner++ as a binary planet classifier."""
 
+__all__ = ["ExoMinerClassifier"]
+
 from collections.abc import Mapping
 from dataclasses import asdict
 from typing import override
@@ -22,8 +24,6 @@ from project.model import (
     from_flat,
     to_flat,
 )
-
-__all__ = ["ExoMinerClassifier"]
 
 
 class ExoMinerClassifier(lightning.LightningModule):

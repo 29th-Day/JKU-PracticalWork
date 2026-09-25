@@ -1,13 +1,5 @@
 """Building blocks shared by the ExoMiner++ branches."""
 
-from collections.abc import Mapping, Sequence
-from typing import override
-
-import torch
-from torch import Tensor, nn
-
-from project.model.config import Activation, ConvInit
-
 __all__ = [
     "BranchHead",
     "ConvStack",
@@ -16,6 +8,14 @@ __all__ = [
     "make_activation",
     "with_scalars",
 ]
+
+from collections.abc import Mapping, Sequence
+from typing import override
+
+import torch
+from torch import Tensor, nn
+
+from project.model.config import Activation, ConvInit
 
 
 def make_activation(activation: Activation) -> nn.Module:

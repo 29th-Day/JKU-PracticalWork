@@ -1,5 +1,7 @@
 """Classification metrics reported in the ExoMiner++ paper (Sec. 6.1)."""
 
+__all__ = ["paper_metrics"]
+
 from torchmetrics import MetricCollection
 from torchmetrics.classification import (
     BinaryAccuracy,
@@ -8,8 +10,6 @@ from torchmetrics.classification import (
     BinaryPrecision,
     BinaryRecall,
 )
-
-__all__ = ["paper_metrics"]
 
 
 def paper_metrics(threshold: float = 0.5) -> MetricCollection:

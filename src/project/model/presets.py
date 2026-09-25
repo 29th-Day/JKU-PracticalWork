@@ -6,6 +6,14 @@
 - `REPO_V1`: NASA ExoMiner v1.0.0 (`models_keras.py`, `exominer_plus_plus.yaml`).
 """
 
+__all__ = [
+    "DIAGRAM",
+    "PAPER",
+    "PAPER_OPTIMIZER",
+    "REPO_V1",
+    "REPO_V1_OPTIMIZER",
+]
+
 from dataclasses import replace
 
 from project.model.config import (
@@ -16,14 +24,6 @@ from project.model.config import (
     TransitViewsConfig,
     UnfoldedFluxConfig,
 )
-
-__all__ = [
-    "DIAGRAM",
-    "PAPER",
-    "PAPER_OPTIMIZER",
-    "REPO_V1",
-    "REPO_V1_OPTIMIZER",
-]
 
 _STELLAR_SCALARS = (
     "tce_sdens_norm",

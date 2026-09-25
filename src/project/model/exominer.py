@@ -1,5 +1,7 @@
 """The ExoMiner++ network (Valizadegan et al. 2025)."""
 
+__all__ = ["ExoMinerPlusPlus"]
+
 from collections.abc import Mapping
 from functools import partial
 from typing import override
@@ -28,8 +30,6 @@ from project.model.branches import (
 )
 from project.model.config import ExoMinerConfig, required_features
 from project.model.layers import init_weights, make_activation
-
-__all__ = ["ExoMinerPlusPlus"]
 
 
 class ExoMinerPlusPlus(nn.Module):

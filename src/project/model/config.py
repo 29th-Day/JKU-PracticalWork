@@ -6,6 +6,23 @@ config can be flattened into dotted keys (`to_flat`) and rebuilt from them
 on construction.
 """
 
+__all__ = [
+    "Activation",
+    "ConfigValue",
+    "ConvBranchConfig",
+    "ConvInit",
+    "ExoMinerConfig",
+    "OptimizerConfig",
+    "ScalarBranchConfig",
+    "TransitViewsConfig",
+    "UnfoldedFluxConfig",
+    "from_flat",
+    "pooled_length",
+    "required_features",
+    "to_flat",
+    "with_overrides",
+]
+
 from collections.abc import Mapping
 from dataclasses import dataclass, fields, replace
 from typing import Literal, get_args
@@ -29,23 +46,6 @@ from project.features import (
     UNFOLDED_FLUX_VIEW,
     WEAK_SECONDARY_VIEWS,
 )
-
-__all__ = [
-    "Activation",
-    "ConfigValue",
-    "ConvBranchConfig",
-    "ConvInit",
-    "ExoMinerConfig",
-    "OptimizerConfig",
-    "ScalarBranchConfig",
-    "TransitViewsConfig",
-    "UnfoldedFluxConfig",
-    "from_flat",
-    "pooled_length",
-    "required_features",
-    "to_flat",
-    "with_overrides",
-]
 
 Activation = Literal["relu", "prelu"]
 ConvInit = Literal["he", "glorot"]

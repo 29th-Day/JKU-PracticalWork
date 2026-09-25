@@ -5,6 +5,15 @@ of height 1, so rows never mix. That lets the transit views stack as rows and sh
 one convolution, which is exactly the paper's shared feature extractor.
 """
 
+__all__ = [
+    "Branch",
+    "DifferenceImageBranch",
+    "ScalarBranch",
+    "TimeSeriesBranch",
+    "TransitViewBranches",
+    "UnfoldedFluxBranch",
+]
+
 from collections.abc import Mapping
 from typing import override
 
@@ -38,15 +47,6 @@ from project.model.layers import (
     make_activation,
     with_scalars,
 )
-
-__all__ = [
-    "Branch",
-    "DifferenceImageBranch",
-    "ScalarBranch",
-    "TimeSeriesBranch",
-    "TransitViewBranches",
-    "UnfoldedFluxBranch",
-]
 
 
 class ScalarBranch(nn.Module):
