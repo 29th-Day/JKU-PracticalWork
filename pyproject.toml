@@ -24,16 +24,17 @@ dev = [
 ]
 rocm = ["torch>=2.14", "triton-rocm"]
 cuda = ["torch>=2.14"]
+cpu = ["torch>=2.14"]
 
 [build-system]
 requires = ["uv_build>=0.12.17,<0.13.0"]
 build-backend = "uv_build"
 
 [tool.uv]
-# AMD (ROCm) by default; NVIDIA opts in with `--no-group rocm --group cuda`.
+# AMD (ROCm) by default; swap with `--no-group rocm --group cuda` (or `cpu`).
 default-groups = ["dev", "rocm"]
 environments = ["sys_platform == 'linux'"]
-conflicts = [[{ group = "rocm" }, { group = "cuda" }]]
+conflicts = [[{ group = "rocm" }, { group = "cuda" }, { group = "cpu" }]]
 
 [[tool.uv.index]]
 name = "pytorch-rocm"
@@ -45,10 +46,16 @@ name = "pytorch-cu130"
 url = "https://download.pytorch.org/whl/cu130"
 explicit = true
 
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
 [tool.uv.sources]
 torch = [
     { index = "pytorch-rocm", group = "rocm" },
     { index = "pytorch-cu130", group = "cuda" },
+    { index = "pytorch-cpu", group = "cpu" },
 ]
 triton-rocm = [{ index = "pytorch-rocm", group = "rocm" }]
 

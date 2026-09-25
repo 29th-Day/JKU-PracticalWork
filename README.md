@@ -18,16 +18,17 @@ uv sync
 uv run pytest
 ```
 
-On NVIDIA (CUDA 13.0, driver >= 580), swap the torch build with the `cuda` group,
-in every `uv sync` and `uv run`:
+For NVIDIA (CUDA 13.0, driver >= 580) or CPU only, swap the torch build with the
+`cuda` or `cpu` group, in every `uv sync` and `uv run`:
 
 ```bash
-uv sync --no-group rocm --group cuda
+uv sync --no-group rocm --group cuda   # NVIDIA
+uv sync --no-group rocm --group cpu    # CPU only
 uv run --no-group rocm --group cuda pytest
 ```
 
-Forgetting `--no-group rocm` there fails with "groups `cuda` and `rocm` are
-incompatible" instead of silently switching builds. On an NVIDIA-only machine,
+Forgetting `--no-group rocm` there fails with "groups ... are incompatible"
+instead of silently switching builds. On a machine without an AMD GPU,
 `export UV_NO_GROUP=rocm` saves typing the first flag.
 
 If `triton` ever breaks with `module 'triton' has no attribute 'language'` (the

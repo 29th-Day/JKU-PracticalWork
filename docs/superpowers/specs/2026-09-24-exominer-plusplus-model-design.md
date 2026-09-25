@@ -517,7 +517,7 @@ The user already made these changes in part. Still to do:
 Usage:
 
 - ROCm is the default: plain `uv sync` and `uv run` install `torch+rocm7.2` on AMD.
-- NVIDIA (CUDA 13.0 wheels, driver ≥ 580) opts in on every command with `--no-group rocm --group cuda`. Enabling both groups fails with a conflict error instead of silently switching builds.
+- NVIDIA (CUDA 13.0 wheels, driver ≥ 580) and CPU-only installs opt in on every command with `--no-group rocm --group cuda` or `--no-group rocm --group cpu` (CPU wheels from `https://download.pytorch.org/whl/cpu`). Enabling both groups fails with a conflict error instead of silently switching builds.
 - The torch builds were first extras (`--extra rocm`). That was changed to dependency groups because uv has no default for extras, and a plain `uv run` then silently re-synced to PyPI's CUDA torch, which also broke the ROCm `triton` install.
 - One `uv.lock` covers both. The CUDA path can only be exercised on an NVIDIA machine.
 
