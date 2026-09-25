@@ -27,8 +27,10 @@ it with `uv sync --extra rocm --reinstall-package triton-rocm`.
 
 ## Checks
 
+Use the same extra you synced with (`rocm` on AMD, `cuda` on NVIDIA):
+
 ```bash
-uv run --extra rocm pytest
-uv run --extra rocm basedpyright
-uv run --extra rocm ruff check
+uv run --extra rocm pytest         # or: uv run --extra cuda pytest
+uv run --extra rocm basedpyright   # or: uv run --extra cuda basedpyright
+uv run --extra rocm ruff check     # or: uv run --extra cuda ruff check
 ```
