@@ -7,20 +7,31 @@ authors = [
     { name = "29th-Day", email = "43274844+29th-Day@users.noreply.github.com" }
 ]
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "lightning>=2.6",
+    "torchmetrics>=1.9",
+]
+
+[project.optional-dependencies]
+rocm = ["torch>=2.14", "triton-rocm"]
+cuda = ["torch>=2.14"]
 
 [project.scripts]
 # project = "project:main"
+
+[dependency-groups]
+dev = [
+    "basedpyright>=1.40",
+    "pytest>=9.1",
+    "ruff>=0.16",
+]
 
 [build-system]
 requires = ["uv_build>=0.12.17,<0.13.0"]
 build-backend = "uv_build"
 
-[project.optional-dependencies]
-rocm = ["torch>=2.14", "pytorch-triton-rocm"]
-cuda = ["torch>=2.14"]
-
 [tool.uv]
+environments = ["sys_platform == 'linux'"]
 conflicts = [[{ extra = "rocm" }, { extra = "cuda" }]]
 
 [[tool.uv.index]]
@@ -36,6 +47,33 @@ explicit = true
 [tool.uv.sources]
 torch = [
     { index = "pytorch-rocm", extra = "rocm" },
-    { index = "pytorch-cu126", extra = "cuda" },
+    { index = "pytorch-cu130", extra = "cuda" },
 ]
-pytorch-triton-rocm = [{ index = "pytorch-rocm", extra = "rocm" }]
+triton-rocm = [{ index = "pytorch-rocm", extra = "rocm" }]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+filterwarnings = [
+    "ignore:Using padding='same' with even kernel lengths:UserWarning",
+    "ignore:.*does not have many workers:UserWarning",
+    "ignore:`isinstance\\(treespec, LeafSpec\\)` is deprecated",
+]
+
+[tool.ruff]
+line-length = 88
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "N", "UP", "B", "Q"]
+
+[tool.basedpyright]
+pythonVersion = "3.12"
+typeCheckingMode = "recommended"
+include = ["src", "tests"]
+# nn.Module.__call__ and parts of torch/Lightning are typed as Any or left untyped.
+reportAny = false
+reportUnknownMemberType = false
+reportUnknownVariableType = false
+reportUnknownArgumentType = false
+# In-place torch APIs (nn.init.*_, backward, optimizer.step) return values nobody uses.
+reportUnusedCallResult = false
