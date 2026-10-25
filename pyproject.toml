@@ -19,7 +19,6 @@ dependencies = [
 dev = [
     "ai-edge-model-explorer>=0.1.33",
     "basedpyright>=1.40",
-    "pytest>=9.1",
     "ruff>=0.16",
 ]
 rocm = ["torch>=2.14", "triton-rocm"]
@@ -59,17 +58,6 @@ torch = [
 ]
 triton-rocm = [{ index = "pytorch-rocm", group = "rocm" }]
 
-[tool.pytest.ini_options]
-testpaths = ["tests"]
-pythonpath = ["."]
-filterwarnings = [
-    "ignore:Using padding='same' with even kernel lengths:UserWarning",
-    "ignore:.*does not have many workers:UserWarning",
-    "ignore:`isinstance\\(treespec, LeafSpec\\)` is deprecated",
-    "ignore:GPU available but not used",
-    "ignore:cuDNN Benchmark limit is not supported in MIOpen",
-]
-
 [tool.ruff]
 line-length = 88
 
@@ -79,7 +67,7 @@ select = ["E", "W", "F", "I", "N", "UP", "B", "Q"]
 [tool.basedpyright]
 pythonVersion = "3.12"
 typeCheckingMode = "recommended"
-include = ["src", "tests", "scripts/explore_model.py"]
+include = ["src", "scripts/explore_model.py", "scripts/build_dataset.py"]
 # nn.Module.__call__ and parts of torch/Lightning are typed as Any or left untyped.
 reportAny = false
 reportUnknownMemberType = false

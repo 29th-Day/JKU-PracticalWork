@@ -13,3 +13,6 @@ superpowers
 .venv
 
 runs
+
+# Datasets
+data/

@@ -15,7 +15,6 @@ AMD GPUs (ROCm 7.2) are the default, so plain uv commands work:
 
 ```bash
 uv sync
-uv run pytest
 ```
 
 For NVIDIA (CUDA 13.0, driver >= 580) or CPU only, swap the torch build with the
@@ -24,7 +23,7 @@ For NVIDIA (CUDA 13.0, driver >= 580) or CPU only, swap the torch build with the
 ```bash
 uv sync --no-group rocm --group cuda   # NVIDIA
 uv sync --no-group rocm --group cpu    # CPU only
-uv run --no-group rocm --group cuda pytest
+uv run --no-group rocm --group cuda scripts/build_dataset.py
 ```
 
 Forgetting `--no-group rocm` there fails with "groups ... are incompatible"
@@ -38,7 +37,6 @@ PyPI `triton` and `triton-rocm` packages share files), repair it with
 ## Checks
 
 ```bash
-uv run pytest
 uv run basedpyright
 uv run ruff check
 ```
