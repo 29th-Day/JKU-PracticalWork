@@ -5,6 +5,9 @@ build/
 dist/
 wheels/
 *.egg-info
+*_cache
+.superpowers
+superpowers
 
 # Virtual environments
 .venv

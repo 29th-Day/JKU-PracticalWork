@@ -39,9 +39,9 @@ class ExoMinerClassifier(lightning.LightningModule):
     """
 
     def __init__(
-            self,
-            config: ExoMinerConfig | Mapping[str, ConfigValue] = PAPER,
-            optimizer: OptimizerConfig | Mapping[str, float] = PAPER_OPTIMIZER,
+        self,
+        config: ExoMinerConfig | Mapping[str, ConfigValue] = PAPER,
+        optimizer: OptimizerConfig | Mapping[str, float] = PAPER_OPTIMIZER,
     ) -> None:
         super().__init__()
         if not isinstance(config, ExoMinerConfig):
@@ -91,10 +91,10 @@ class ExoMinerClassifier(lightning.LightningModule):
         )
 
     def _shared_step(
-            self,
-            batch: Batch,
-            metrics: MetricCollection,
-            stage: str,
+        self,
+        batch: Batch,
+        metrics: MetricCollection,
+        stage: str,
     ) -> Tensor:
         logits = self(batch["features"])
         labels = batch["label"].float()

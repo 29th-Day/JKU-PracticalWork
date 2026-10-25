@@ -1,3 +1,6 @@
-from project.abc import TEST
+from project.classifier import ExoMinerClassifier
+from project.model import ExoMinerConfig, ExoMinerPlusPlus
 
-print(TEST)
+model = ExoMinerClassifier()
+
+print(model)
