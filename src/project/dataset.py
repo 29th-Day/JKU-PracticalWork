@@ -1,52 +1,49 @@
-"""Memory-mapped on-disk storage of the ExoMiner++ TCE dataset."""
+"""The ExoMiner++ TCE dataset, stored on disk as Hugging Face `datasets`."""
 
 __all__ = [
     "DEFAULT_ROOT",
     "KNOWN_LABELS",
-    "LABEL_DTYPE",
-    "ExoMinerDataModule",
-    "LabeledDataset",
-    "MANIFEST_NAME",
     "PART_NAMES",
     "PLANET_LABELS",
-    "UID_DTYPE",
+    "SCHEMA",
     "UNLABELED",
-    "UnlabeledDataset",
-    "Manifest",
-    "Part",
+    "ExoMinerDataModule",
+    "LabeledDataset",
     "PartName",
-    "PartWriter",
     "Split",
+    "UnlabeledDataset",
     "load_part",
     "make_split",
-    "open_part",
     "paper_split",
     "random_split",
-    "read_manifest",
-    "write_manifest",
 ]
 
-import json
 import math
-import os
-import shutil
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Literal, TypedDict, final, override
+from typing import Any, Literal, final, override
 
+import datasets as hf  # pyright: ignore[reportMissingTypeStubs]
 import lightning
 import numpy as np
 import torch
 from numpy.typing import NDArray
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import (
+    BatchSampler,
+    DataLoader,
+    Dataset,
+    RandomSampler,
+    SequentialSampler,
+)
 
 from project.features import Batch, UnlabeledBatch
 from project.normalization import (
     SOURCE_SHAPES,
+    STATS_SOURCES,
     NormStats,
     load_or_compute_stats,
-    normalize_example,
+    normalize_batch,
 )
 
 PartName = Literal["labeled", "unlabeled"]
@@ -56,157 +53,41 @@ PLANET_LABELS: frozenset[str] = frozenset({"KP", "CP"})
 KNOWN_LABELS: tuple[str, ...] = ("KP", "CP", "BD", "EB", "FP", "NTP", "NEB", "NPC")
 UNLABELED = "UNK"
 
-DEFAULT_ROOT = Path("data/exominer_plusplus")
-
-UID_DTYPE = "<U32"
-LABEL_DTYPE = "<U3"
-MANIFEST_NAME = "manifest.json"
-
-_META_DIR = "meta"
-_META_DTYPES: dict[str, str] = {
-    "uid": UID_DTYPE,
-    "target_id": "int64",
-    "label": LABEL_DTYPE,
-    "fold": "int8",
-    "paper_score": "float32",
-}
+DEFAULT_ROOT = Path("data/exominer_plusplus_hf")
 
 
-class Manifest(TypedDict):
-    """What a dataset directory was built from."""
-
-    zenodo_record: str
-    files: dict[str, str]
-    source_shapes: dict[str, list[int]]
-    parts: dict[str, int]
-    built: str
-
-
-@dataclass(frozen=True, eq=False)
-class Part:
-    """One memory-mapped part (`labeled` or `unlabeled`) of the dataset.
-
-    Pickles by path so that DataLoader workers reopen the memory maps instead
-    of copying them.
-    """
-
-    root: Path
-    name: PartName
-    uid: NDArray[np.str_]
-    target_id: NDArray[np.int64]
-    label: NDArray[np.str_]
-    fold: NDArray[np.int8]
-    paper_score: NDArray[np.float32]
-    features: Mapping[str, NDArray[np.float32]]
-
-    def __len__(self) -> int:
-        return len(self.uid)
-
-    @override
-    def __reduce__(self) -> tuple[object, ...]:
-        return (load_part, (self.root, self.name))
+def _feature(shape: tuple[int, ...]) -> hf.Value | hf.List | hf.Array2D | hf.Array3D:
+    match shape:
+        case ():
+            return hf.Value("float32")
+        case (n,):
+            return hf.List(hf.Value("float32"), length=n)
+        case (_, _):
+            return hf.Array2D(shape, "float32")
+        case _:
+            return hf.Array3D(shape, "float32")
 
 
-def write_manifest(root: Path, manifest: Manifest) -> None:
-    """Atomically write `manifest` to `root`."""
-    root.mkdir(parents=True, exist_ok=True)
-    tmp = root / f"{MANIFEST_NAME}.tmp"
-    tmp.write_text(json.dumps(manifest, indent=2))
-    os.replace(tmp, root / MANIFEST_NAME)
+SCHEMA = hf.Features({
+    "uid": hf.Value("string"),
+    "target_id": hf.Value("int64"),
+    "label": hf.Value("string"),
+    "fold": hf.Value("int8"),
+    "paper_score": hf.Value("float32"),
+    **{name: _feature(shape) for name, shape in SOURCE_SHAPES.items()},
+})
 
 
-def read_manifest(root: Path) -> Manifest:
-    """Read the manifest of the dataset in `root`."""
-    manifest: Manifest = json.loads((root / MANIFEST_NAME).read_text())
-    return manifest
-
-
-def load_part(root: Path, name: PartName) -> Part:
-    """Open `name` in `root` with every array memory-mapped."""
-    hint = "run scripts/build_dataset.py to build it"
-    if not (root / MANIFEST_NAME).exists():
-        raise FileNotFoundError(f"No {MANIFEST_NAME} in {root}: {hint}")
-    if name not in read_manifest(root)["parts"]:
-        raise FileNotFoundError(f"Part {name!r} is not built in {root}: {hint}")
-    return open_part(root, name)
-
-
-def open_part(root: Path, name: PartName) -> Part:
-    """`load_part` without the manifest check, for the build that writes it."""
-    directory = root / name
-    meta = {
-        key: np.load(directory / _META_DIR / f"{key}.npy", mmap_mode="r")
-        for key in _META_DTYPES
-    }
-    features = {
-        column: np.load(directory / f"{column}.npy", mmap_mode="r")
-        for column in SOURCE_SHAPES
-    }
-    return Part(
-        root=root,
-        name=name,
-        uid=meta["uid"],
-        target_id=meta["target_id"],
-        label=meta["label"],
-        fold=meta["fold"],
-        paper_score=meta["paper_score"],
-        features=features,
-    )
-
-
-@final
-class PartWriter:
-    """Fills a part in `<name>.partial/` and renames it to `<name>` on `finish`."""
-
-    def __init__(self, root: Path, name: PartName, n_rows: int) -> None:
-        self._final = root / name
-        self._partial = root / f"{name}.partial"
-        if self._partial.exists():
-            shutil.rmtree(self._partial)
-        (self._partial / _META_DIR).mkdir(parents=True)
-        self._meta = {
-            key: np.lib.format.open_memmap(
-                self._partial / _META_DIR / f"{key}.npy",
-                mode="w+",
-                dtype=dtype,
-                shape=(n_rows,),
-            )
-            for key, dtype in _META_DTYPES.items()
-        }
-        self._features = {
-            column: np.lib.format.open_memmap(
-                self._partial / f"{column}.npy",
-                mode="w+",
-                dtype=np.float32,
-                shape=(n_rows, *shape),
-            )
-            for column, shape in SOURCE_SHAPES.items()
-        }
-
-    def write(
-            self,
-            rows: NDArray[np.int64],
-            meta: Mapping[str, NDArray[np.generic]],
-            features: Mapping[str, NDArray[np.float32]],
-    ) -> None:
-        """Store the given examples at row indices `rows`."""
-        too_long = [uid for uid in meta["uid"].tolist() if len(uid) > 32]
-        if too_long:
-            raise ValueError(f"uid longer than 32 characters: {too_long[0]!r}")
-        for key, array in self._meta.items():
-            array[rows] = meta[key]
-        for column, array in self._features.items():
-            array[rows] = features[column]
-
-    def finish(self) -> None:
-        """Flush everything and publish the part under its final name."""
-        for array in (*self._meta.values(), *self._features.values()):
-            array.flush()
-        self._meta.clear()
-        self._features.clear()
-        if self._final.exists():
-            shutil.rmtree(self._final)
-        os.replace(self._partial, self._final)
+def load_part(root: Path, name: PartName) -> hf.Dataset:
+    """Open `name` in `root`, memory-mapped and returning numpy arrays."""
+    try:
+        part = hf.load_from_disk(root / name)
+    except FileNotFoundError as error:
+        hint = "run scripts/build_dataset.py to build it"
+        message = f"Part {name!r} is not built in {root}: {hint}"
+        raise FileNotFoundError(message) from error
+    assert isinstance(part, hf.Dataset)
+    return part.with_format("numpy")
 
 
 @final
@@ -285,52 +166,57 @@ def make_split(
     return random_split(target_id, seed, fractions)
 
 
-def _features_of(part: Part, row: int, stats: NormStats) -> dict[str, torch.Tensor]:
-    raw = {name: np.asarray(column[row]) for name, column in part.features.items()}
-    normalized = normalize_example(raw, stats)
-    # memory-mapped rows are read-only, so copy before handing them to torch
-    return {
-        name: torch.from_numpy(np.array(value, dtype=np.float32))
-        for name, value in normalized.items()
-    }
+def _features(
+        raw: Mapping[str, NDArray[np.float32]],
+        stats: NormStats,
+) -> dict[str, torch.Tensor]:
+    normalized = normalize_batch(raw, stats)
+    return {name: torch.from_numpy(value) for name, value in normalized.items()}
 
 
 @final
 class LabeledDataset(Dataset[Batch]):
-    """Normalized examples of the given `rows` of a labeled part."""
+    """Normalized batches of the given `rows` of the labeled part.
 
-    def __init__(self, part: Part, rows: NDArray[np.int64], stats: NormStats) -> None:
-        self.part = part
-        self.rows = rows
-        self.stats = stats
+    Indexed by a list of positions, as yielded by a `BatchSampler`.
+    """
 
-    def __len__(self) -> int:
-        return len(self.rows)
-
-    @override
-    def __getitem__(self, index: int) -> Batch:
-        row = int(self.rows[index])
-        is_planet = self.part.label[row] in PLANET_LABELS
-        return {
-            "features": _features_of(self.part, row, self.stats),
-            "label": torch.tensor(1.0 if is_planet else 0.0),
-        }
-
-
-@final
-class UnlabeledDataset(Dataset[UnlabeledBatch]):
-    """Normalized examples of every row of an unlabeled part."""
-
-    def __init__(self, part: Part, stats: NormStats) -> None:
-        self.part = part
+    def __init__(
+            self,
+            part: hf.Dataset,
+            rows: NDArray[np.int64],
+            stats: NormStats,
+    ) -> None:
+        self.part = part.select(rows).select_columns([*SOURCE_SHAPES, "label"])
         self.stats = stats
 
     def __len__(self) -> int:
         return len(self.part)
 
     @override
-    def __getitem__(self, index: int) -> UnlabeledBatch:
-        return {"features": _features_of(self.part, index, self.stats)}
+    def __getitem__(self, index: list[int]) -> Batch:
+        raw = self.part[index]
+        is_planet = np.isin(raw.pop("label"), list(PLANET_LABELS))
+        return {
+            "features": _features(raw, self.stats),
+            "label": torch.from_numpy(is_planet.astype(np.float32)),
+        }
+
+
+@final
+class UnlabeledDataset(Dataset[UnlabeledBatch]):
+    """Normalized batches of the unlabeled part, indexed like `LabeledDataset`."""
+
+    def __init__(self, part: hf.Dataset, stats: NormStats) -> None:
+        self.part = part.select_columns(list(SOURCE_SHAPES))
+        self.stats = stats
+
+    def __len__(self) -> int:
+        return len(self.part)
+
+    @override
+    def __getitem__(self, index: list[int]) -> UnlabeledBatch:
+        return {"features": _features(self.part[index], self.stats)}
 
 
 @final
@@ -364,7 +250,7 @@ class ExoMinerDataModule(lightning.LightningDataModule):
         self.num_workers = num_workers
         self.split: Split | None = None
         self.norm_stats: NormStats | None = None
-        self._labeled: Part | None = None
+        self._labeled: hf.Dataset | None = None
 
     @override
     def setup(self, stage: str) -> None:
@@ -372,20 +258,35 @@ class ExoMinerDataModule(lightning.LightningDataModule):
             return
         self._labeled = load_part(self.root, "labeled")
         self.split = make_split(
-            self._labeled.fold,
-            self._labeled.target_id,
+            np.asarray(self._labeled["fold"], dtype=np.int8),
+            np.asarray(self._labeled["target_id"], dtype=np.int64),
             self.seed,
             self.fractions,
             self.test_fold,
             self.val_fold,
         )
         if self.norm_stats is None:
+            train = self._labeled.select(self.split.train)
+
+            def load_features() -> dict[str, NDArray[np.float32]]:
+                return train.select_columns(list(STATS_SOURCES))[:]
+
             self.norm_stats = load_or_compute_stats(
                 self.root / "norm_stats",
-                self._labeled.features,
-                self._labeled.uid,
-                self.split.train,
+                np.asarray(train["uid"], dtype=np.str_),
+                load_features,
             )
+
+    def _loader[T](self, dataset: Dataset[T], shuffle: bool) -> DataLoader[T]:
+        order = RandomSampler(dataset) if shuffle else SequentialSampler(dataset)  # pyright: ignore[reportArgumentType]
+        return DataLoader(
+            dataset,
+            sampler=BatchSampler(order, self.batch_size, drop_last=False),
+            batch_size=None,
+            num_workers=self.num_workers,
+            persistent_workers=self.num_workers > 0,
+            multiprocessing_context="forkserver" if self.num_workers > 0 else None,
+        )
 
     def _labeled_loader(
             self,
@@ -394,14 +295,8 @@ class ExoMinerDataModule(lightning.LightningDataModule):
     ) -> DataLoader[Batch]:
         assert self._labeled is not None
         assert self.norm_stats is not None
-        return DataLoader(
-            LabeledDataset(self._labeled, rows, self.norm_stats),
-            batch_size=self.batch_size,
-            shuffle=shuffle,
-            num_workers=self.num_workers,
-            persistent_workers=self.num_workers > 0,
-            multiprocessing_context="forkserver" if self.num_workers > 0 else None,
-        )
+        dataset = LabeledDataset(self._labeled, rows, self.norm_stats)
+        return self._loader(dataset, shuffle)
 
     @override
     def train_dataloader(self) -> DataLoader[Batch]:
@@ -424,18 +319,12 @@ class ExoMinerDataModule(lightning.LightningDataModule):
             raise RuntimeError(
                 "No normalization statistics: predict with ckpt_path=<checkpoint>"
             )
-        return DataLoader(
-            UnlabeledDataset(load_part(self.root, "unlabeled"), self.norm_stats),
-            batch_size=self.batch_size,
-            shuffle=False,
-            num_workers=self.num_workers,
-            persistent_workers=self.num_workers > 0,
-            multiprocessing_context="forkserver" if self.num_workers > 0 else None,
-        )
+        part = load_part(self.root, "unlabeled")
+        return self._loader(UnlabeledDataset(part, self.norm_stats), shuffle=False)
 
     def predict_uids(self) -> NDArray[np.str_]:
         """The unlabeled `uid`s in `predict_dataloader` order."""
-        return np.array(load_part(self.root, "unlabeled").uid)
+        return np.asarray(load_part(self.root, "unlabeled")["uid"], dtype=np.str_)
 
     @override
     def state_dict(self) -> dict[str, Any]:  # pyright: ignore[reportExplicitAny]

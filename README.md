@@ -23,7 +23,7 @@ For NVIDIA (CUDA 13.0, driver >= 580) or CPU only, swap the torch build with the
 ```bash
 uv sync --no-group rocm --group cuda   # NVIDIA
 uv sync --no-group rocm --group cpu    # CPU only
-uv run --no-group rocm --group cuda scripts/build_dataset.py
+uv run --no-group rocm --group cuda --group build scripts/build_dataset.py
 ```
 
 Forgetting `--no-group rocm` there fails with "groups ... are incompatible"
@@ -33,6 +33,16 @@ instead of silently switching builds. On a machine without an AMD GPU,
 If `triton` ever breaks with `module 'triton' has no attribute 'language'` (the
 PyPI `triton` and `triton-rocm` packages share files), repair it with
 `uv sync --reinstall-package triton-rocm`.
+
+## Dataset
+
+`scripts/build_dataset.py` downloads the ExoMiner++ TFRecords from Zenodo (about
+19 GB) and saves them as Hugging Face datasets in `data/exominer_plusplus_hf`.
+TensorFlow and pooch are only needed for this, in the `build` group:
+
+```bash
+uv run --group build scripts/build_dataset.py
+```
 
 ## Checks
 

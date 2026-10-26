@@ -8,6 +8,7 @@ authors = [
 ]
 requires-python = ">=3.12"
 dependencies = [
+    "datasets>=4",
     "lightning>=2.6",
     "torchmetrics>=1.9",
 ]
@@ -24,6 +25,10 @@ dev = [
 rocm = ["torch>=2.14", "triton-rocm"]
 cuda = ["torch>=2.14"]
 cpu = ["torch>=2.14"]
+build = [
+    "pooch>=1.8",
+    "tensorflow-cpu>=2.20",
+]
 
 [build-system]
 requires = ["uv_build>=0.12.17,<0.13.0"]

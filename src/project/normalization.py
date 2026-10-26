@@ -1,7 +1,7 @@
 """NASA's v1.0.0 normalization of the ExoMiner++ features.
 
 Maps each model feature to its raw TFRecord column, computes the training-set
-statistics (cached per training set and recipe) and normalizes one example.
+statistics (cached per training set and recipe) and normalizes a batch.
 """
 
 __all__ = [
@@ -14,6 +14,7 @@ __all__ = [
     "SCALAR_EPS",
     "SCALAR_RECIPES",
     "SOURCE_SHAPES",
+    "STATS_SOURCES",
     "UNNORMALIZED_SCALARS",
     "FeatureStats",
     "NormStats",
@@ -21,7 +22,7 @@ __all__ = [
     "compute_stats",
     "load_or_compute_stats",
     "mad_std",
-    "normalize_example",
+    "normalize_batch",
     "normalize_scalar",
     "stats_key",
 ]
@@ -29,7 +30,7 @@ __all__ = [
 import hashlib
 import json
 import os
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TypedDict, cast
@@ -127,6 +128,9 @@ SCALAR_RECIPES: dict[str, ScalarRecipe] = {
 }
 
 
+STATS_SOURCES: tuple[str, ...] = (*SCALAR_RECIPES, "local_centr_view", *_IMAGES)
+
+
 class FeatureStats(TypedDict):
     median: float
     mad_std: float
@@ -156,16 +160,13 @@ def _scalar_values(name: str, values: NDArray[np.floating]) -> NDArray[np.float6
     return kept
 
 
-def compute_stats(
-        features: Mapping[str, NDArray[np.float32]],
-        rows: NDArray[np.int64],
-) -> NormStats:
-    """Statistics of the training `rows`; `features` is keyed by raw column."""
+def compute_stats(features: Mapping[str, NDArray[np.float32]]) -> NormStats:
+    """Statistics of the training set; `features` holds the `STATS_SOURCES` columns."""
     scalars: dict[str, FeatureStats] = {}
     for name in SCALAR_RECIPES:
-        kept = _scalar_values(name, features[name][rows])
+        kept = _scalar_values(name, features[name])
         scalars[name] = {"median": float(np.median(kept)), "mad_std": mad_std(kept)}
-    view = features["local_centr_view"][rows][:, CENTROID_OUT_OF_TRANSIT]
+    view = features["local_centr_view"][:, CENTROID_OUT_OF_TRANSIT]
     view = view.astype(np.float64).ravel()
     centroid: FeatureStats = {
         "median": float(np.median(view)),
@@ -175,7 +176,7 @@ def compute_stats(
         raise ValueError("centroid mad_std is zero over the out-of-transit bins")
     images: dict[str, FeatureStats] = {}
     for name in _IMAGES:
-        pixels = features[name][rows]
+        pixels = features[name]
         images[name] = {
             "median": float(np.nanmedian(pixels)),
             "mad_std": mad_std(pixels, ignore_nan=True),
@@ -203,15 +204,17 @@ def stats_key(uids: NDArray[np.str_]) -> str:
 
 def load_or_compute_stats(
         cache_dir: Path,
-        features: Mapping[str, NDArray[np.float32]],
         uids: NDArray[np.str_],
-        rows: NDArray[np.int64],
+        load_features: Callable[[], Mapping[str, NDArray[np.float32]]],
 ) -> NormStats:
-    """Statistics of the training `rows`, cached under `cache_dir` per training set."""
-    path = cache_dir / f"{stats_key(uids[rows])}.json"
+    """Statistics of the training set `uids`, cached under `cache_dir`.
+
+    `load_features` is only called on a cache miss.
+    """
+    path = cache_dir / f"{stats_key(uids)}.json"
     if path.exists():
         return cast(NormStats, json.loads(path.read_text()))
-    stats = compute_stats(features, rows)
+    stats = compute_stats(load_features())
     cache_dir.mkdir(parents=True, exist_ok=True)
     tmp = path.with_name(f"{path.name}.{os.getpid()}.tmp")
     tmp.write_text(json.dumps(stats))
@@ -242,18 +245,18 @@ def normalize_scalar(
     return ((x - median) / (spread + SCALAR_EPS)).astype(np.float32)
 
 
-def normalize_example(
+def normalize_batch(
         raw: Mapping[str, NDArray[np.float32]],
         stats: NormStats,
 ) -> dict[str, NDArray[np.float32]]:
-    """Model features of one example from its raw columns."""
+    """Model features of a batch from its raw columns; arrays lead with the batch."""
     out: dict[str, NDArray[np.float32]] = {}
     for feature, source in FEATURE_SOURCES.items():
         value = raw[source]
         if source in SCALAR_RECIPES:
             out[feature] = normalize_scalar(source, value, stats["scalars"][source])
         elif source == "local_centr_view":
-            centered = value - np.median(value)
+            centered = value - np.median(value, axis=-1, keepdims=True)
             scale = stats["centroid"]["mad_std"] + CENTROID_EPS
             out[feature] = (centered / scale).astype(np.float32)
         elif source == "local_centr_view_var":
